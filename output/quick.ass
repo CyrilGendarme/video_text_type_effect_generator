@@ -10,5 +10,5 @@ Style: Style1,Arial,48,&H00FFFFFF,&H0000FF00,&H00000000,&H00000000,0,0,0,0,100,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
-Dialogue: 0,0:00:00.50,0:00:01.48,Style0,,0,0,0,,{\a5}{\pos(960,300)}FINAL FIX TEST
+Dialogue: 0,0:00:00.50,0:00:01.19,Style0,,0,0,0,,{\a5}{\pos(960,300)}QUICK TEST
 Dialogue: 0,0:00:02.50,0:00:04.00,Style1,,0,0,0,,{\a5}{\pos(960,450)}Generated
