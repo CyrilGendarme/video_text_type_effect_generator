@@ -161,7 +161,7 @@ class TextAnimator:
         centiseconds = int((secs % 1) * 100)
         return f"{hours}:{minutes:02d}:{int(secs):02d}.{centiseconds:02d}"
 
-    def _style_to_ass(self, style: TextStyle) -> str:
+    def _style_to_ass(self, style_name: str, style: TextStyle) -> str:
         """Convert TextStyle to ASS style definition"""
         # Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour,
         # BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle,
@@ -171,7 +171,7 @@ class TextAnimator:
         underline = -1 if style.underline else 0
 
         return (
-            f"Default,{style.font_name},{style.font_size},{style.color},"
+            f"{style_name},{style.font_name},{style.font_size},{style.color},"
             f"&H0000FF00,{style.outline_color},&H00000000,"
             f"{bold},{italic},{underline},0,100,100,0,0,1,"
             f"{style.outline_width},{style.shadow_depth},2,10,10,10,1"
@@ -285,8 +285,14 @@ class TextAnimator:
 
     def to_ass_string(self) -> str:
         """Generate complete ASS file content"""
-        # ASS file structure
-        ass_lines = ["[Script Info]", "Title: Generated Text Animation", ""]
+        # ASS file structure - Video resolution for proper positioning
+        ass_lines = [
+            "[Script Info]",
+            "Title: Generated Text Animation",
+            "PlayResX: 1920",
+            "PlayResY: 1080",
+            ""
+        ]
 
         # Collect all unique styles
         styles = {}
@@ -314,8 +320,9 @@ class TextAnimator:
             " BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding"
         )
 
-        for idx, (style_key, style) in enumerate(styles.items()):
-            ass_lines.append(f"Style: {self._style_to_ass(style)}")
+        for style_idx, (style_key, style) in enumerate(styles.items()):
+            style_name = f"Style{style_idx}"
+            ass_lines.append(f"Style: {self._style_to_ass(style_name, style)}")
 
         ass_lines.append("")
 
@@ -326,7 +333,7 @@ class TextAnimator:
         )
 
         for event_idx, event in enumerate(self.events):
-            style_name = f"Default"
+            style_name = style_names.get(event_idx, "Style0")  # Use the style name from our mapping
 
             start = self._time_to_ass_format(event.start_time)
             end = self._time_to_ass_format(event.end_time)
