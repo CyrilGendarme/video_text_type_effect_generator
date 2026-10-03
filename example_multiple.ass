@@ -1,0 +1,14 @@
+[Script Info]
+Title: Generated Text Animation
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,Arial,64,&H00FFFFFF,&H0000FF00,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,2.0,2.0,2,10,10,10,1
+Style: Default,Arial,36,&H0000FFFF,&H0000FF00,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,1.5,2.0,2,10,10,10,1
+Style: Default,Arial,28,&H00FFFFFF,&H0000FF00,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2.0,2.0,2,10,10,10,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:00.50,0:00:01.19,Default,,0,0,0,,{\a5}{\pos(960,300)}WELCOME
+Dialogue: 0,0:00:02.20,0:00:03.65,Default,,0,0,0,,{\a5}{\pos(960,400)}TO THE SHOW
+Dialogue: 0,0:00:04.65,0:00:06.65,Default,,0,0,0,,{\a5}{\pos(960,500)}Enjoy the content!

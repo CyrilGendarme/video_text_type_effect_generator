@@ -1,0 +1,24 @@
+[Script Info]
+Title: Generated Text Animation
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,Arial,36,&H00FFFFFF,&H0000FF00,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,2.0,2.0,2,10,10,10,1
+Style: Default,Arial,36,&H0000FFFF,&H0000FF00,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,2.0,2.0,2,10,10,10,1
+Style: Default,Arial,36,&H00FF0000,&H0000FF00,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,2.0,2.0,2,10,10,10,1
+Style: Default,Arial,36,&H0000FF00,&H0000FF00,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,2.0,2.0,2,10,10,10,1
+Style: Default,Arial,36,&H00FF00FF,&H0000FF00,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,2.0,2.0,2,10,10,10,1
+Style: Default,Arial,36,&H00FFFF00,&H0000FF00,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,2.0,2.0,2,10,10,10,1
+Style: Default,Arial,36,&H000000FF,&H0000FF00,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,2.0,2.0,2,10,10,10,1
+Style: Default,Arial,36,&H00FF6600,&H0000FF00,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,2.0,2.0,2,10,10,10,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:00.50,0:00:00.70,Default,,0,0,0,,{\a5}{\pos(960,200)}White
+Dialogue: 0,0:00:01.30,0:00:01.54,Default,,0,0,0,,{\a5}{\pos(960,280)}Yellow
+Dialogue: 0,0:00:02.10,0:00:02.26,Default,,0,0,0,,{\a5}{\pos(960,360)}Blue
+Dialogue: 0,0:00:02.90,0:00:03.10,Default,,0,0,0,,{\a5}{\pos(960,440)}Green
+Dialogue: 0,0:00:03.70,0:00:03.98,Default,,0,0,0,,{\a5}{\pos(960,520)}Magenta
+Dialogue: 0,0:00:04.50,0:00:04.66,Default,,0,0,0,,{\a5}{\pos(960,600)}Cyan
+Dialogue: 0,0:00:05.29,0:00:05.41,Default,,0,0,0,,{\a5}{\pos(960,680)}Red
+Dialogue: 0,0:00:06.09,0:00:06.33,Default,,0,0,0,,{\a5}{\pos(960,760)}Orange

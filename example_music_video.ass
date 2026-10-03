@@ -1,0 +1,16 @@
+[Script Info]
+Title: Generated Text Animation
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,Staatliches-Regular,96,&H0000FFFF,&H0000FF00,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,4.0,3.0,2,10,10,10,1
+Style: Default,DMSans,48,&H00FFFFFF,&H0000FF00,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2.0,2.0,2,10,10,10,1
+Style: Default,DMSans,42,&H00FF00FF,&H0000FF00,&H00000000,&H00000000,0,-1,0,0,100,100,0,0,1,2.0,2.0,2,10,10,10,1
+Style: Default,Arial,24,&H00CCCCCC,&H0000FF00,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2.0,2.0,2,10,10,10,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:01.00,0:00:02.45,Default,,0,0,0,,{\a5}{\pos(960,200)}NEON NIGHTS
+Dialogue: 0,0:00:03.95,0:00:04.91,Default,,0,0,0,,{\a5}{\pos(960,350)}Synthwave Rising
+Dialogue: 0,0:00:05.91,0:00:07.10,Default,,0,0,0,,{\a5}{\pos(960,450)}Electronic Dreams
+Dialogue: 0,0:00:08.10,0:00:10.10,Default,,0,0,0,,{\a5}{\pos(960,550)}Produced by Future Sound

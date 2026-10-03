@@ -1,0 +1,7 @@
+# Video Text Type Effect Generator Requirements
+
+# Core dependencies (minimal - most functionality uses system tools)
+# Python 3.8+ is required
+
+# Optional: For enhanced functionality
+Pillow>=9.0.0  # For future image processing features
