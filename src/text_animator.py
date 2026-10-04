@@ -29,6 +29,7 @@ class TextStyle:
     shadow_depth: float = 2.0
     shadow_angle: float = 45.0
     alpha: float = 0.0  # 0 = opaque, 1 = transparent
+    spacing: float = 0.0  # letter spacing in pixels
 
 
 @dataclass
@@ -44,13 +45,46 @@ class TextEvent:
     typing_speed: float = 80  # ms per character
     wait_before: float = 0  # ms before animation starts
     wait_after: float = 0  # ms after animation completes
+    area: Optional[Tuple[int, int]] = None  # (width, height) of a screen-centered text box
+    frames: Optional[List[Tuple[float, str, float]]] = None  # (time_ms, text, alpha)
+    fade_ms: int = 0  # fade-in duration for FADE_IN
+
+
+@dataclass
+class BackgroundEvent:
+    """Full-screen colored rectangle with fade in/out"""
+    start_time: float
+    end_time: float
+    color: Tuple[int, int, int, int]  # r, g, b, a (a: 255 = opaque)
+    fade_in: float = 1.0
+    fade_out: float = 1.0
+    rect: Optional[Tuple[int, int]] = None  # (width, height), centered; None = full screen
 
 
 class TextAnimator:
     """Generates animated text sequences for ASS subtitles"""
 
-    def __init__(self):
+    def __init__(self, width: int = 1920, height: int = 1080):
+        self.width = width
+        self.height = height
         self.events: List[TextEvent] = []
+        self.backgrounds: List[BackgroundEvent] = []
+
+    def add_background(
+        self,
+        start_time: float,
+        end_time: float,
+        color: Tuple[int, int, int, int] = (0, 0, 0, 180),
+        fade_in: float = 1.0,
+        fade_out: float = 1.0,
+        rect: Optional[Tuple[int, int]] = None,
+    ) -> None:
+        """Add an RGBA background fading in from / out to transparent.
+        color is (r, g, b, a) with a in 0-255 (255 = opaque).
+        rect is (width, height) of a screen-centered box; None fills the screen."""
+        self.backgrounds.append(
+            BackgroundEvent(start_time, end_time, color, fade_in, fade_out, rect)
+        )
 
     def add_typewriter_text(
         self,
@@ -62,16 +96,18 @@ class TextAnimator:
         style: Optional[TextStyle] = None,
         position: Tuple[int, int] = (0, 0),
         alignment: int = 5,
+        area: Optional[Tuple[int, int]] = None,
     ) -> float:
         """
         Add typewriter effect text.
+        area: (width, height) of a screen-centered box in which the text is wrapped.
         Returns the end time of the animation.
         """
         if style is None:
             style = TextStyle()
 
         # Calculate duration based on text length and typing speed
-        num_chars = len(text)
+        num_chars = max(len(l) for l in text.split("\n")) if text else 0
         animation_duration = (num_chars * typing_speed) / 1000.0
         end_time = start_time + wait_before / 1000.0 + animation_duration + wait_after / 1000.0
 
@@ -83,6 +119,7 @@ class TextAnimator:
             position=position,
             alignment=alignment,
             animation_mode=AnimationMode.TYPEWRITER,
+            area=area,
             typing_speed=typing_speed,
             wait_before=wait_before,
             wait_after=wait_after,
@@ -98,30 +135,33 @@ class TextAnimator:
         style: Optional[TextStyle] = None,
         position: Tuple[int, int] = (0, 0),
         alignment: int = 5,
+        hold: float = 0.0,
+        area: Optional[Tuple[int, int]] = None,
     ) -> float:
         """
         Add radial reveal effect (like legacy reveal animation).
+        hold: seconds the full text stays visible once revealed.
+        area: (width, height) of a screen-centered box in which the text is wrapped.
         Returns the end time of the animation.
         """
         if style is None:
             style = TextStyle()
 
-        num_chars = len(text)
-        # Calculate based on frame delay and number of characters
-        # Adjust to account for the expanding radius
-        animation_duration = (num_chars * frame_delay) / 1000.0 * 1.2
-        end_time = start_time + animation_duration
-
         event = TextEvent(
             start_time=start_time,
-            end_time=end_time,
+            end_time=start_time,
             text=text,
             style=style,
             position=position,
             alignment=alignment,
             animation_mode=AnimationMode.REVEAL,
             typing_speed=frame_delay,
+            area=area,
         )
+        event.frames = self._generate_reveal_frames(event)
+        last_ms = event.frames[-1][0] if event.frames else 0
+        end_time = start_time + last_ms / 1000.0 + hold
+        event.end_time = end_time
         self.events.append(event)
         return end_time
 
@@ -133,12 +173,13 @@ class TextAnimator:
         style: Optional[TextStyle] = None,
         position: Tuple[int, int] = (0, 0),
         alignment: int = 5,
+        hold: float = 0.0,
     ) -> float:
-        """Add fade-in effect text."""
+        """Add fade-in effect text; it stays fully visible for `hold` seconds after the fade."""
         if style is None:
             style = TextStyle()
 
-        end_time = start_time + duration
+        end_time = start_time + duration + hold
 
         event = TextEvent(
             start_time=start_time,
@@ -148,6 +189,7 @@ class TextAnimator:
             position=position,
             alignment=alignment,
             animation_mode=AnimationMode.FADE_IN,
+            fade_ms=int(duration * 1000),
         )
         self.events.append(event)
         return end_time
@@ -173,7 +215,7 @@ class TextAnimator:
         return (
             f"{style_name},{style.font_name},{style.font_size},{style.color},"
             f"&H0000FF00,{style.outline_color},&H00000000,"
-            f"{bold},{italic},{underline},0,100,100,0,0,1,"
+            f"{bold},{italic},{underline},0,100,100,{style.spacing},0,1,"
             f"{style.outline_width},{style.shadow_depth},2,10,10,10,1"
         )
 
@@ -215,8 +257,20 @@ class TextAnimator:
         """Generate keyframes for radial reveal effect.
         Mimics the legacy reveal animation with expanding radius.
         """
+        lines = event.text.upper().split("\n")
+        per_line = [self._reveal_line_frames(l, event.typing_speed) for l in lines]
+        times = sorted({ms for fr in per_line for ms, _, _ in fr})
         frames = []
-        text = event.text.upper()
+        for t in times:
+            parts = []
+            for l, fr in zip(lines, per_line):
+                cur = [f for f in fr if f[0] <= t]
+                parts.append(cur[-1][1] if cur else " " * len(l))
+            frames.append((t, "\n".join(parts), 0))
+        return frames
+
+    def _reveal_line_frames(self, text: str, frame_delay: float) -> List[Tuple[float, str, float]]:
+        frames = []
         num_chars = len(text)
 
         if num_chars == 0:
@@ -224,7 +278,6 @@ class TextAnimator:
 
         # Calculate center position
         center = (num_chars - 1) / 2.0
-        frame_delay = event.typing_speed
         radius_increment = 0.45
 
         # Generate frames showing progressive reveal
@@ -283,14 +336,14 @@ class TextAnimator:
 
         return frames
 
-    def to_ass_string(self) -> str:
+    def to_ass_string(self, embed_fades: bool = True) -> str:
         """Generate complete ASS file content"""
         # ASS file structure - Video resolution for proper positioning
         ass_lines = [
             "[Script Info]",
             "Title: Generated Text Animation",
-            "PlayResX: 1920",
-            "PlayResY: 1080",
+            f"PlayResX: {self.width}",
+            f"PlayResY: {self.height}",
             ""
         ]
 
@@ -304,13 +357,18 @@ class TextAnimator:
                 event.style.bold,
                 event.style.italic,
                 event.style.color,
+                event.style.spacing,
+                event.style.outline_width,
+                event.style.shadow_depth,
             )
             if style_key not in styles:
                 style_name = f"Style{len(styles)}"
                 styles[style_key] = event.style
                 style_names[i] = style_name
             else:
-                style_names[i] = style_name
+                style_names[i] = next(
+                    f"Style{idx}" for idx, k in enumerate(styles) if k == style_key
+                )
 
         # Add styles section
         ass_lines.append("[V4+ Styles]")
@@ -332,8 +390,89 @@ class TextAnimator:
             "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text"
         )
 
+        for bg in self.backgrounds:
+            r, g, b, a = bg.color
+            bw, bh = bg.rect or (self.width, self.height)
+            x0, y0 = (self.width - bw) // 2, (self.height - bh) // 2
+            ass_lines.append(
+                f"Dialogue: 0,{self._time_to_ass_format(bg.start_time)},"
+                f"{self._time_to_ass_format(bg.end_time)},Style0,,0,0,0,,"
+                f"{{\\an7\\pos({x0},{y0})\\bord0\\shad0\\1c&H{b:02X}{g:02X}{r:02X}&"
+                f"\\1a&H{255 - a:02X}&"
+                + (f"\\fad({int(bg.fade_in * 1000)},{int(bg.fade_out * 1000)})" if embed_fades else "")
+                + 
+                f"\\p1}}m 0 0 l {bw} 0 {bw} {bh} 0 {bh}{{\\p0}}"
+            )
+
         for event_idx, event in enumerate(self.events):
             style_name = style_names.get(event_idx, "Style0")  # Use the style name from our mapping
+
+            if event.animation_mode == AnimationMode.TYPEWRITER and event.text:
+                # One dialogue per typed character; the untyped remainder is invisible
+                # so the layout (centering) stays stable.
+                pos = ""
+                margins = "0,0,0"
+                if event.area:
+                    aw, ah = event.area
+                    mh = max((self.width - aw) // 2, 0)
+                    margins = f"{mh},{mh},{max((self.height - ah) // 2, 0)}"
+                elif event.position != (0, 0):
+                    pos = f"\\pos({event.position[0]},{event.position[1]})"
+                t0 = event.start_time + event.wait_before / 1000.0
+                step = event.typing_speed / 1000.0
+                lines = event.text.split("\n")
+                n = max(len(l) for l in lines)
+                for i in range(1, n + 1):
+                    s = t0 + (i - 1) * step
+                    e = event.end_time if i == n else t0 + i * step
+                    # All lines type in parallel; each keeps its untyped remainder hidden.
+                    body = "\\N".join(
+                        l[:i] + (f"{{\\alpha&HFF&}}{l[i:]}{{\\alpha&H00&}}" if l[i:] else "")
+                        for l in lines
+                    )
+                    ass_lines.append(
+                        f"Dialogue: 1,{self._time_to_ass_format(s)},"
+                        f"{self._time_to_ass_format(e)},{style_name},,{margins},,"
+                        f"{{\\an{event.alignment}{pos}}}{body}"
+                    )
+                continue
+
+            if event.animation_mode == AnimationMode.REVEAL and event.frames:
+                pos = ""
+                margins = "0,0,0"
+                if event.area:
+                    aw, ah = event.area
+                    mh = max((self.width - aw) // 2, 0)
+                    margins = f"{mh},{mh},{max((self.height - ah) // 2, 0)}"
+                elif event.position != (0, 0):
+                    pos = f"\\pos({event.position[0]},{event.position[1]})"
+                full = event.text.upper()
+                for k, (ms, frame_text, _) in enumerate(event.frames):
+                    s = event.start_time + ms / 1000.0
+                    e = (
+                        event.end_time
+                        if k == len(event.frames) - 1
+                        else event.start_time + event.frames[k + 1][0] / 1000.0
+                    )
+                    # Unrevealed letters stay in the layout but are invisible,
+                    # so wrapping and centering don't change between frames.
+                    body = ""
+                    hidden = False
+                    for ch_full, ch in zip(full, frame_text):
+                        if ch_full == "\n":
+                            body += "\\N"
+                            continue
+                        is_hidden = ch == " " and ch_full != " "
+                        if is_hidden != hidden:
+                            body += "{\\alpha&HFF&}" if is_hidden else "{\\alpha&H00&}"
+                            hidden = is_hidden
+                        body += ch_full if is_hidden else ch
+                    ass_lines.append(
+                        f"Dialogue: 1,{self._time_to_ass_format(s)},"
+                        f"{self._time_to_ass_format(e)},{style_name},,{margins},,"
+                        f"{{\\an{event.alignment}{pos}}}{body}"
+                    )
+                continue
 
             start = self._time_to_ass_format(event.start_time)
             end = self._time_to_ass_format(event.end_time)
@@ -349,13 +488,16 @@ class TextAnimator:
             else:
                 text = event.text
 
+            if event.animation_mode == AnimationMode.FADE_IN:
+                text = f"{{\\fad({event.fade_ms},0)}}{text}"
+
             # Format text with position if specified
             if event.position != (0, 0):
                 pos_x, pos_y = event.position
                 text = f"{{\\pos({pos_x},{pos_y})}}{text}"
 
             # Add alignment
-            text = f"{{\\a{event.alignment}}}{text}"
+            text = f"{{\\an{event.alignment}}}{text}"
 
             ass_lines.append(
                 f"Dialogue: 0,{start},{end},{style_name},,0,0,0,,{text}"
@@ -363,7 +505,14 @@ class TextAnimator:
 
         return "\n".join(ass_lines)
 
-    def save_ass_file(self, filepath: str):
-        """Save generated ASS content to file"""
+    def total_duration(self) -> float:
+        """End time of the last event or background"""
+        ends = [e.end_time for e in self.events] + [b.end_time for b in self.backgrounds]
+        return max(ends, default=0.0)
+
+    def save_ass_file(self, filepath: str, embed_fades: bool = True):
+        """Save generated ASS content to file.
+        embed_fades=False leaves the background at constant opacity (the fades are
+        then applied to the alpha channel by VideoProcessor.render_transparent)."""
         with open(filepath, "w", encoding="utf-8") as f:
-            f.write(self.to_ass_string())
+            f.write(self.to_ass_string(embed_fades))

@@ -158,6 +158,67 @@ class VideoProcessor:
             logger.error(f"Error during video processing: {e}")
             return False
 
+    def render_transparent(
+        self,
+        ass_subtitle_file: str,
+        output_video: str,
+        duration: float,
+        width: int = 1920,
+        height: int = 1080,
+        fps: int = 30,
+        font_dir: Optional[str] = None,
+        fade_in: float = 0.0,
+        fade_out: float = 0.0,
+    ) -> bool:
+        """
+        Render an ASS file onto a transparent canvas, producing a video with a
+        real alpha channel (VP9 .webm, or ProRes 4444 if output ends with .mov).
+
+        libass does not write alpha, so the subtitles are rendered over black and
+        over white; alpha is recovered from the difference between the two.
+
+        fade_in / fade_out (seconds) fade the alpha channel only, which keeps the
+        colour channels stable (unlike a fade baked into the ASS, whose colour must
+        be recovered by dividing by a tiny alpha).
+        """
+        if not os.path.exists(ass_subtitle_file):
+            logger.error(f"Subtitle file not found: {ass_subtitle_file}")
+            return False
+
+        ass = os.path.abspath(ass_subtitle_file).replace("\\", "/").replace(":", "\\:")
+        fonts = ""
+        if font_dir:
+            fdir = os.path.abspath(font_dir).replace("\\", "/").replace(":", "\\:")
+            fonts = f":fontsdir='{fdir}'"
+        src = f"s={width}x{height}:r={fps}:d={duration:.3f}"
+        graph = (
+            f"color=c=black:{src},ass='{ass}'{fonts},format=gbrp,split[b1][b2];"
+            f"color=c=white:{src},ass='{ass}'{fonts},format=gbrp[w];"
+            "[w][b2]blend=all_expr='255-(A-B)',extractplanes=g,split[a1][a2];"
+            "[b1][a1]unpremultiply=inplace=0,format=gbrp[u];"
+            "[u][a2]alphamerge,format=gbrap"
+        )
+        if fade_in > 0:
+            graph += f",fade=t=in:st=0:d={fade_in}:alpha=1"
+        if fade_out > 0:
+            graph += f",fade=t=out:st={max(duration - fade_out, 0):.3f}:d={fade_out}:alpha=1"
+        if output_video.lower().endswith(".mov"):
+            graph += ",scale=in_range=pc:out_range=pc,format=yuva444p10le"
+        graph += "[out]"
+        if output_video.lower().endswith(".mov"):
+            codec = ["-c:v", "prores_ks", "-profile:v", "4444", "-pix_fmt", "yuva444p10le", "-alpha_bits", "16"]
+        else:
+            codec = ["-c:v", "libvpx-vp9", "-pix_fmt", "yuva420p", "-auto-alt-ref", "0",
+                     "-crf", "4", "-b:v", "0", "-deadline", "good", "-cpu-used", "2"]
+
+        cmd = [self.ffmpeg_path, "-y", "-filter_complex", graph, "-map", "[out]", *codec, output_video]
+        logger.info(f"Command: {' '.join(cmd)}")
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=3600)
+        if result.returncode != 0:
+            logger.error(f"FFmpeg error:\n{result.stderr}")
+            return False
+        return True
+
     def overlay_subtitle_hq(
         self,
         input_video: str,
